@@ -2,6 +2,7 @@ import os
 import pickle
 import argparse
 import platform
+import random
 
 import torch
 from torch.utils.data import DataLoader
@@ -47,7 +48,10 @@ if not os.path.exists(save_dir):
 os.environ['CUDA_VISIBLE_DEVICES'] = args.CUDA_VISIBLE_DEVICES
 device = torch.device('cuda:' + args.CUDA_VISIBLE_DEVICES[0] if torch.cuda.is_available() else 'cpu')
 
-print(device)
+fix_seed = 2021
+random.seed(fix_seed)
+torch.manual_seed(fix_seed)
+np.random.seed(fix_seed)
 
 if platform.system() == 'Windows':
     data_root = 'E:\\forecastdataset\\pkl'
