@@ -1,3 +1,4 @@
+import json
 import os
 import pickle
 import argparse
@@ -6,6 +7,7 @@ import random
 
 import torch
 from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
 from Datapreprocessor import Datapreprocessor, InformerDataset
 from Informer import Informer
 from tqdm import tqdm
@@ -18,7 +20,6 @@ parser.add_argument('-C', '--CUDA_VISIBLE_DEVICES', type=str, default='0,1,2,3,4
 parser.add_argument('-d', '--dataset', type=str, default='gweather', help='wht, gweather')
 parser.add_argument('-D', '--delete_model_dic', action='store_true')
 parser.add_argument('-e', '--total_eopchs', type=int, default=20)
-parser.add_argument('-E', '--early_stop', action='store_true')
 parser.add_argument('-f', '--fixed_seed', type=int, default=None)
 parser.add_argument('-G', '--gpu', action='store_true')
 parser.add_argument('-I', '--individual', action='store_true')
@@ -33,6 +34,7 @@ parser.add_argument('-S', '--save_dir', type=str, default='save')
 parser.add_argument('-t', '--train_ratio', type=float, default=.6)
 parser.add_argument('-v', '--valid_ratio', type=float, default=.2)
 args = parser.parse_args()
+arg_dict = vars(args)
 
 dataset_name = args.dataset
 input_len = args.input_len
@@ -51,19 +53,30 @@ fixed_seed = args.fixed_seed
 best_model = args.best_model
 kernel_size = args.kernel_size
 delete_model_dic = args.delete_model_dic
-early_stop = args.early_stop
+multiGPU = args.multi_GPU
 
-if not os.path.exists(save_dir):
-    os.makedirs(save_dir)
-
+local_rank = int(os.environ['LOCAL_RANK']) if 'LOCAL_RANK' in os.environ else 0
 os.environ['CUDA_VISIBLE_DEVICES'] = args.CUDA_VISIBLE_DEVICES
-device = torch.device('cuda:0' if gpu else 'cpu')
-# print(device)
+if multiGPU:
+    device = torch.device('cuda', local_rank)
+else:
+    device = torch.device('cuda:0' if gpu else 'cpu')
 
-if fixed_seed is not None:
-    random.seed(fixed_seed)
-    torch.manual_seed(fixed_seed)
-    np.random.seed(fixed_seed)
+if (multiGPU and local_rank == 0) or not multiGPU:
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    print(json.dumps(arg_dict, ensure_ascii=False))
+
+if (fixed_seed is not None) or multiGPU:
+    seed = fixed_seed if fixed_seed is not None else 2333
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+if multiGPU:
+    import torch.distributed as dist
+    dist.init_process_group(backend="nccl")
 
 if platform.system() == 'Windows':
     data_root = 'E:\\forecastdataset\\pkl'
@@ -86,9 +99,14 @@ num_sensors = data_preprocessor.num_sensors
 train_input, train_gt, train_encoding = data_preprocessor.load_train_samples(encoding=True)
 valid_input, valid_gt, valid_encoding = data_preprocessor.load_validate_samples(encoding=True)
 test_input, test_gt, test_encoding = data_preprocessor.load_test_samples(encoding=True)
-train_loader = DataLoader(InformerDataset(train_input, train_gt, train_encoding), batch_size=batch_size, shuffle=True)
-valid_loader = DataLoader(InformerDataset(valid_input, valid_gt, valid_encoding), batch_size=batch_size, shuffle=False)
-test_loader = DataLoader(InformerDataset(test_input, test_gt, test_encoding), batch_size=batch_size, shuffle=False)
+train_set = InformerDataset(train_input, train_gt, train_encoding)
+train_loader = DataLoader(train_set, sampler=DistributedSampler(train_set) if multiGPU else None, batch_size=batch_size,
+                          shuffle=False if multiGPU else True)
+# valid_loader = None
+test_loader = None
+valid_loader = DataLoader(InformerDataset(valid_input, valid_gt, valid_encoding), batch_size=batch_size,shuffle=False)
+if (multiGPU and local_rank == 0) or not multiGPU:
+    test_loader = DataLoader(InformerDataset(test_input, test_gt, test_encoding), batch_size=batch_size, shuffle=False)
 
 model = None
 if which_model == 'informer':
@@ -103,8 +121,9 @@ else:
 model.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 loss_fn = torch.nn.MSELoss()
-
-pbar_epoch = tqdm(total=total_eopchs, ascii=True, dynamic_ncols=True)
+pbar_epoch = None
+if (multiGPU and local_rank == 0) or not multiGPU:
+    pbar_epoch = tqdm(total=total_eopchs, ascii=True, dynamic_ncols=True)
 minium_loss = 100000
 validate_loss_list = []
 last_save_step = -1
@@ -112,7 +131,9 @@ for epoch in range(total_eopchs):
     # train
     model.train()
     total_iters = len(train_loader)
-    pbar_iter = tqdm(total=total_iters, ascii=True, dynamic_ncols=True, leave=False)
+    pbar_iter = None
+    if (multiGPU and local_rank == 0) or not multiGPU:
+        pbar_iter = tqdm(total=total_iters, ascii=True, dynamic_ncols=True, leave=False)
     for i, (input_x, encoding_x, input_y, encoding_y, ground_truth) in enumerate(train_loader):
         optimizer.zero_grad()
         input_x = input_x.to(device)
@@ -124,18 +145,57 @@ for epoch in range(total_eopchs):
         loss = loss_fn(output, ground_truth)
         loss.backward()
         optimizer.step()
-        pbar_iter.set_postfix_str('loss:{:.4f}'.format(loss.item()))
-        pbar_iter.update(1)
-    pbar_iter.close()
+        if (multiGPU and local_rank == 0) or not multiGPU:
+            pbar_iter.set_postfix_str('loss:{:.4f}'.format(loss.item()))
+            pbar_iter.update(1)
+    if (multiGPU and local_rank == 0) or not multiGPU:
+        pbar_iter.close()
 
     # validate
-    model.eval()
+    if (multiGPU and local_rank == 0) or not multiGPU:
+        model.eval()
+        output_list = []
+        gt_list = []
+        pbar_iter = tqdm(total=len(valid_loader), ascii=True, dynamic_ncols=True, leave=False)
+        pbar_iter.set_description_str('validating')
+        with torch.no_grad():
+            for i, (input_x, encoding_x, input_y, encoding_y, ground_truth) in enumerate(valid_loader):
+                input_x = input_x.to(device)
+                encoding_x = encoding_x.to(device)
+                input_y = input_y.to(device)
+                encoding_y = encoding_y.to(device)
+                output = model(input_x, encoding_x, input_y, encoding_y)
+                output_list.append(output.cpu())
+                gt_list.append(ground_truth)
+                pbar_iter.update()
+        pbar_iter.close()
+        output_list = torch.concatenate(output_list, dim=0)
+        gt_list = torch.concatenate(gt_list, dim=0)
+        validate_loss = loss_fn(output_list, gt_list).item()
+        validate_loss_list.append(validate_loss)
+        pbar_epoch.set_postfix_str('validate_loss:{:.4f}'.format(validate_loss))
+        pbar_epoch.update(1)
+        if validate_loss < minium_loss:
+            last_save_step = epoch
+            minium_loss = validate_loss
+            torch.save(model.state_dict(), os.path.join(save_dir, 'best_model.pth'))
+            pbar_epoch.set_description_str('saved at epoch %d %.4f' % (epoch + 1, minium_loss))
+    if multiGPU:
+        dist.barrier()
+if (multiGPU and local_rank == 0) or not multiGPU:
+    pbar_epoch.close()
+
+# test
+if (multiGPU and local_rank == 0) or not multiGPU:
+    pbar_iter = tqdm(total=len(test_loader), ascii=True, dynamic_ncols=True)
+    pbar_iter.set_description_str('testing')
     output_list = []
     gt_list = []
-    pbar_iter = tqdm(total=len(valid_loader), ascii=True, dynamic_ncols=True, leave=False)
-    pbar_iter.set_description_str('validating')
+    if best_model:
+        model.load_state_dict(torch.load(os.path.join(save_dir, 'best_model.pth')))
+    model.eval()
     with torch.no_grad():
-        for i, (input_x, encoding_x, input_y, encoding_y, ground_truth) in enumerate(valid_loader):
+        for i, (input_x, encoding_x, input_y, encoding_y, ground_truth) in enumerate(test_loader):
             input_x = input_x.to(device)
             encoding_x = encoding_x.to(device)
             input_y = input_y.to(device)
@@ -143,47 +203,14 @@ for epoch in range(total_eopchs):
             output = model(input_x, encoding_x, input_y, encoding_y)
             output_list.append(output.cpu())
             gt_list.append(ground_truth)
-            pbar_iter.update()
+            pbar_iter.update(1)
     pbar_iter.close()
     output_list = torch.concatenate(output_list, dim=0)
     gt_list = torch.concatenate(gt_list, dim=0)
-    validate_loss = loss_fn(output_list, gt_list).item()
-    validate_loss_list.append(validate_loss)
-    pbar_epoch.set_postfix_str('validate_loss:{:.4f}'.format(validate_loss))
-    pbar_epoch.update(1)
-    if validate_loss < minium_loss:
-        last_save_step = epoch
-        minium_loss = validate_loss
-        torch.save(model.state_dict(), os.path.join(save_dir, 'best_model.pth'))
-        pbar_epoch.set_description_str('saved at epoch %d %.4f' % (epoch + 1, minium_loss))
-    if early_stop and epoch - last_save_step > 10:
-        break
-pbar_epoch.close()
-
-# test
-pbar_iter = tqdm(total=len(test_loader), ascii=True, dynamic_ncols=True)
-pbar_iter.set_description_str('testing')
-output_list = []
-gt_list = []
-if best_model:
-    model.load_state_dict(torch.load(os.path.join(save_dir, 'best_model.pth')))
-model.eval()
-with torch.no_grad():
-    for i, (input_x, encoding_x, input_y, encoding_y, ground_truth) in enumerate(test_loader):
-        input_x = input_x.to(device)
-        encoding_x = encoding_x.to(device)
-        input_y = input_y.to(device)
-        encoding_y = encoding_y.to(device)
-        output = model(input_x, encoding_x, input_y, encoding_y)
-        output_list.append(output.cpu())
-        gt_list.append(ground_truth)
-        pbar_iter.update(1)
-pbar_iter.close()
-output_list = torch.concatenate(output_list, dim=0)
-gt_list = torch.concatenate(gt_list, dim=0)
-test_loss = loss_fn(output_list, gt_list).item()
-mae_loss = torch.mean(torch.abs(output_list - gt_list))
-print('\033[32mmse loss:{:.4f} mae loss:{:.4f}\033[0m'.format(test_loss, mae_loss))
-if delete_model_dic:
-    os.remove(os.path.join(save_dir, 'best_model.pth'))
-    print('\033[33mdeleted model.pth\033[0m')
+    test_loss = loss_fn(output_list, gt_list).item()
+    mae_loss = torch.mean(torch.abs(output_list - gt_list))
+    print('\033[32mmse loss:{:.4f} mae loss:{:.4f}\033[0m'.format(test_loss, mae_loss))
+    if delete_model_dic:
+        os.remove(os.path.join(save_dir, 'best_model.pth'))
+        print('\033[33mdeleted model.pth\033[0m')
+    dist.destroy_process_group()
