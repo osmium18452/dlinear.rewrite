@@ -77,6 +77,7 @@ if (fixed_seed is not None) or multiGPU:
 
 if multiGPU:
     import torch.distributed as dist
+
     dist.init_process_group(backend="nccl")
 
 if platform.system() == 'Windows':
@@ -108,7 +109,7 @@ train_loader = DataLoader(train_set, sampler=DistributedSampler(train_set) if mu
                           shuffle=False if multiGPU else True)
 # valid_loader = None
 test_loader = None
-valid_loader = DataLoader(InformerDataset(valid_input, valid_gt, valid_encoding), batch_size=batch_size,shuffle=False)
+valid_loader = DataLoader(InformerDataset(valid_input, valid_gt, valid_encoding), batch_size=batch_size, shuffle=False)
 if (multiGPU and local_rank == 0) or not multiGPU:
     test_loader = DataLoader(InformerDataset(test_input, test_gt, test_encoding), batch_size=batch_size, shuffle=False)
 
@@ -173,7 +174,7 @@ for epoch in range(total_eopchs):
                 gt_list.append(ground_truth)
                 pbar_iter.update()
         pbar_iter.close()
-        if torch.__version__>'1.13.0':
+        if torch.__version__ > '1.13.0':
             output_list = torch.concatenate(output_list, dim=0)
             gt_list = torch.concatenate(gt_list, dim=0)
         else:
@@ -213,20 +214,21 @@ if (multiGPU and local_rank == 0) or not multiGPU:
             gt_list.append(ground_truth)
             pbar_iter.update(1)
     pbar_iter.close()
-    if torch.__version__>'1.13.0':
+    if torch.__version__ > '1.13.0':
         output_list = torch.concatenate(output_list, dim=0)
         gt_list = torch.concatenate(gt_list, dim=0)
     else:
         output_list = torch.cat(output_list, dim=0)
         gt_list = torch.cat(gt_list, dim=0)
     test_loss = loss_fn(output_list, gt_list).item()
-    mae_loss = torch.mean(torch.abs(output_list - gt_list))
+    mae_loss = torch.mean(torch.abs(output_list - gt_list)).item()
     print('\033[32mmse loss:{:.4f} mae loss:{:.4f}\033[0m'.format(test_loss, mae_loss))
-    result_dict=arg_dict
-    result_dict['mse']=test_loss
-    result_dict['mae']=mae_loss
-    print(json.dumps(result_dict, ensure_ascii=False, file=open(os.path.join(save_dir, 'result.json'), 'w')))
+    result_dict = arg_dict
+    result_dict['mse'] = test_loss
+    result_dict['mae'] = mae_loss
+    print(json.dumps(result_dict, ensure_ascii=False), file=open(os.path.join(save_dir, 'result.json'), 'w'))
     if delete_model_dic:
         os.remove(os.path.join(save_dir, 'best_model.pth'))
         print('\033[33mdeleted model.pth\033[0m')
-    dist.destroy_process_group()
+    if multiGPU:
+        dist.destroy_process_group()
