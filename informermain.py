@@ -33,6 +33,7 @@ parser.add_argument('-s', '--stride', type=int, default=1)
 parser.add_argument('-S', '--save_dir', type=str, default='save')
 parser.add_argument('-t', '--train_ratio', type=float, default=.6)
 parser.add_argument('-v', '--valid_ratio', type=float, default=.2)
+parser.add_argument('--fudan', action='store_true')
 args = parser.parse_args()
 arg_dict = vars(args)
 
@@ -81,7 +82,10 @@ if multiGPU:
 if platform.system() == 'Windows':
     data_root = 'E:\\forecastdataset\\pkl'
 else:
-    data_root = '/home/icpc/pycharmproj/forecast.dataset/pkl/'
+    if args.fudan:
+        data_root = '/remote-home/liuwenbo/pycproj/dataset'
+    else:
+        data_root = '/home/icpc/pycharmproj/forecast.dataset/pkl/'
 
 data_preprocessor = None
 dataset = None
@@ -169,8 +173,12 @@ for epoch in range(total_eopchs):
                 gt_list.append(ground_truth)
                 pbar_iter.update()
         pbar_iter.close()
-        output_list = torch.concatenate(output_list, dim=0)
-        gt_list = torch.concatenate(gt_list, dim=0)
+        if torch.__version__>'1.13.0':
+            output_list = torch.concatenate(output_list, dim=0)
+            gt_list = torch.concatenate(gt_list, dim=0)
+        else:
+            output_list = torch.cat(output_list, dim=0)
+            gt_list = torch.cat(gt_list, dim=0)
         validate_loss = loss_fn(output_list, gt_list).item()
         validate_loss_list.append(validate_loss)
         pbar_epoch.set_postfix_str('validate_loss:{:.4f}'.format(validate_loss))
@@ -205,11 +213,19 @@ if (multiGPU and local_rank == 0) or not multiGPU:
             gt_list.append(ground_truth)
             pbar_iter.update(1)
     pbar_iter.close()
-    output_list = torch.concatenate(output_list, dim=0)
-    gt_list = torch.concatenate(gt_list, dim=0)
+    if torch.__version__>'1.13.0':
+        output_list = torch.concatenate(output_list, dim=0)
+        gt_list = torch.concatenate(gt_list, dim=0)
+    else:
+        output_list = torch.cat(output_list, dim=0)
+        gt_list = torch.cat(gt_list, dim=0)
     test_loss = loss_fn(output_list, gt_list).item()
     mae_loss = torch.mean(torch.abs(output_list - gt_list))
     print('\033[32mmse loss:{:.4f} mae loss:{:.4f}\033[0m'.format(test_loss, mae_loss))
+    result_dict=arg_dict
+    result_dict['mse']=test_loss
+    result_dict['mae']=mae_loss
+    print(json.dumps(result_dict, ensure_ascii=False, file=open(os.path.join(save_dir, 'result.json'), 'w')))
     if delete_model_dic:
         os.remove(os.path.join(save_dir, 'best_model.pth'))
         print('\033[33mdeleted model.pth\033[0m')

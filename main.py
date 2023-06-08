@@ -31,6 +31,7 @@ parser.add_argument('-s', '--stride', type=int, default=1)
 parser.add_argument('-S', '--save_dir', type=str, default='save')
 parser.add_argument('-t', '--train_ratio', type=float, default=.6)
 parser.add_argument('-v', '--valid_ratio', type=float, default=.2)
+parser.add_argument('--fudan', action='store_true')
 args = parser.parse_args()
 
 dataset_name = args.dataset
@@ -67,7 +68,10 @@ if fixed_seed is not None:
 if platform.system() == 'Windows':
     data_root = 'E:\\forecastdataset\\pkl'
 else:
-    data_root = '/home/icpc/pycharmproj/forecast.dataset/pkl/'
+    if args.fudan:
+        data_root = '/remote-home/liuwenbo/pycproj/dataset'
+    else:
+        data_root = '/home/icpc/pycharmproj/forecast.dataset/pkl/'
 
 data_preprocessor = None
 dataset = None
