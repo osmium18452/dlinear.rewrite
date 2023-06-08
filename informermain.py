@@ -6,26 +6,27 @@ import random
 
 import torch
 from torch.utils.data import DataLoader
-from Datapreprocessor import Datapreprocessor, LinearsDataset, InformerDataset
-from Linears import LTSFLinear, LTSFNLinear, LTSFDLinear
+from Datapreprocessor import Datapreprocessor, InformerDataset
+from Informer import Informer
 from tqdm import tqdm
 import numpy as np
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-b', '--batch_size', type=int, default=1024)
+parser.add_argument('-b', '--batch_size', type=int, default=256)
 parser.add_argument('-B', '--best_model', action='store_true')
 parser.add_argument('-C', '--CUDA_VISIBLE_DEVICES', type=str, default='0,1,2,3,4,5,6,7')
 parser.add_argument('-d', '--dataset', type=str, default='gweather', help='wht, gweather')
 parser.add_argument('-D', '--delete_model_dic', action='store_true')
-parser.add_argument('-e', '--total_eopchs', type=int, default=100)
+parser.add_argument('-e', '--total_eopchs', type=int, default=20)
 parser.add_argument('-E', '--early_stop', action='store_true')
 parser.add_argument('-f', '--fixed_seed', type=int, default=None)
 parser.add_argument('-G', '--gpu', action='store_true')
 parser.add_argument('-I', '--individual', action='store_true')
-parser.add_argument('-i', '--input_len', type=int, default=336)
+parser.add_argument('-i', '--input_len', type=int, default=96)
 parser.add_argument('-k', '--kernel_size', type=int, default=25)
 parser.add_argument('-l', '--lr', type=float, default=.001)
-parser.add_argument('-m', '--model', type=str, default='linear', help='linear, dlinear, nlinear')
+parser.add_argument('-m', '--model', type=str, default='informer', help='informer')
+parser.add_argument('-M', '--multi_GPU', action='store_true')
 parser.add_argument('-o', '--output_len', type=int, default=96)
 parser.add_argument('-s', '--stride', type=int, default=1)
 parser.add_argument('-S', '--save_dir', type=str, default='save')
@@ -81,21 +82,21 @@ else:
 
 data_preprocessor = Datapreprocessor(dataset, input_len, output_len, stride=stride)
 num_sensors = data_preprocessor.num_sensors
-train_input, train_gt = data_preprocessor.load_train_samples()
-valid_input, valid_gt = data_preprocessor.load_validate_samples()
-test_input, test_gt = data_preprocessor.load_test_samples()
-train_loader = DataLoader(LinearsDataset(train_input, train_gt), batch_size=batch_size, shuffle=True)
-valid_loader = DataLoader(LinearsDataset(valid_input, valid_gt), batch_size=batch_size, shuffle=False)
-test_loader = DataLoader(LinearsDataset(test_input, test_gt), batch_size=batch_size, shuffle=False)
+
+train_input, train_gt, train_encoding = data_preprocessor.load_train_samples(encoding=True)
+valid_input, valid_gt, valid_encoding = data_preprocessor.load_validate_samples(encoding=True)
+test_input, test_gt, test_encoding = data_preprocessor.load_test_samples(encoding=True)
+train_loader = DataLoader(InformerDataset(train_input, train_gt, train_encoding), batch_size=batch_size, shuffle=True)
+valid_loader = DataLoader(InformerDataset(valid_input, valid_gt, valid_encoding), batch_size=batch_size, shuffle=False)
+test_loader = DataLoader(InformerDataset(test_input, test_gt, test_encoding), batch_size=batch_size, shuffle=False)
 
 model = None
-if which_model == 'linear':
-    model = LTSFLinear(input_size=input_len, output_size=output_len, sensors=num_sensors, individual=individual)
-elif which_model == 'nlinear':
-    model = LTSFNLinear(input_size=input_len, output_size=output_len, sensors=num_sensors, individual=individual)
-elif which_model == 'dlinear':
-    model = LTSFDLinear(input_size=input_len, output_size=output_len, sensors=num_sensors, individual=individual,
-                        kernel_size=kernel_size)
+if which_model == 'informer':
+    enc_in = num_sensors
+    dec_in = num_sensors
+    c_out = num_sensors
+    out_len = output_len
+    model = Informer(enc_in, dec_in, c_out, out_len)
 else:
     print('\033[32mno such model\033[0m')
     exit()
@@ -112,11 +113,14 @@ for epoch in range(total_eopchs):
     model.train()
     total_iters = len(train_loader)
     pbar_iter = tqdm(total=total_iters, ascii=True, dynamic_ncols=True, leave=False)
-    for i, (input, ground_truth) in enumerate(train_loader):
+    for i, (input_x, encoding_x, input_y, encoding_y, ground_truth) in enumerate(train_loader):
         optimizer.zero_grad()
-        input = input.to(device)
+        input_x = input_x.to(device)
+        encoding_x = encoding_x.to(device)
+        input_y = input_y.to(device)
+        encoding_y = encoding_y.to(device)
         ground_truth = ground_truth.to(device)
-        output = model(input)
+        output = model(input_x, encoding_x, input_y, encoding_y)
         loss = loss_fn(output, ground_truth)
         loss.backward()
         optimizer.step()
@@ -131,9 +135,12 @@ for epoch in range(total_eopchs):
     pbar_iter = tqdm(total=len(valid_loader), ascii=True, dynamic_ncols=True, leave=False)
     pbar_iter.set_description_str('validating')
     with torch.no_grad():
-        for i, (input, ground_truth) in enumerate(valid_loader):
-            input = input.to(device)
-            output = model(input)
+        for i, (input_x, encoding_x, input_y, encoding_y, ground_truth) in enumerate(valid_loader):
+            input_x = input_x.to(device)
+            encoding_x = encoding_x.to(device)
+            input_y = input_y.to(device)
+            encoding_y = encoding_y.to(device)
+            output = model(input_x, encoding_x, input_y, encoding_y)
             output_list.append(output.cpu())
             gt_list.append(ground_truth)
             pbar_iter.update()
@@ -162,9 +169,12 @@ if best_model:
     model.load_state_dict(torch.load(os.path.join(save_dir, 'best_model.pth')))
 model.eval()
 with torch.no_grad():
-    for i, (input, ground_truth) in enumerate(test_loader):
-        input = input.to(device)
-        output = model(input)
+    for i, (input_x, encoding_x, input_y, encoding_y, ground_truth) in enumerate(test_loader):
+        input_x = input_x.to(device)
+        encoding_x = encoding_x.to(device)
+        input_y = input_y.to(device)
+        encoding_y = encoding_y.to(device)
+        output = model(input_x, encoding_x, input_y, encoding_y)
         output_list.append(output.cpu())
         gt_list.append(ground_truth)
         pbar_iter.update(1)
