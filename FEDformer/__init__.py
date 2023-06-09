@@ -1,0 +1,1 @@
+from FEDformer.Model import Model as Fedformer

@@ -11,6 +11,7 @@ from torch.utils.data.distributed import DistributedSampler
 from Datapreprocessor import Datapreprocessor, InformerDataset
 from Informer import Informer
 from Autoformer import Autoformer
+from FEDformer import Fedformer
 from tqdm import tqdm
 import numpy as np
 
@@ -22,12 +23,13 @@ parser.add_argument('-d', '--dataset', type=str, default='gweather', help='wht, 
 parser.add_argument('-D', '--delete_model_dic', action='store_true')
 parser.add_argument('-e', '--total_eopchs', type=int, default=20)
 parser.add_argument('-f', '--fixed_seed', type=int, default=None)
+parser.add_argument('-F', '-freq', type=str, default='h', help='time encoding type')
 parser.add_argument('-G', '--gpu', action='store_true')
 parser.add_argument('-I', '--individual', action='store_true')
 parser.add_argument('-i', '--input_len', type=int, default=96)
 parser.add_argument('-k', '--kernel_size', type=int, default=25)
 parser.add_argument('-l', '--lr', type=float, default=.001)
-parser.add_argument('-m', '--model', type=str, default='informer', help='informer, autoformer')
+parser.add_argument('-m', '--model', type=str, default='informer', help='informer, autoformer, fedformer')
 parser.add_argument('-M', '--multi_GPU', action='store_true')
 parser.add_argument('-o', '--output_len', type=int, default=96)
 parser.add_argument('-s', '--stride', type=int, default=1)
@@ -127,6 +129,12 @@ elif which_model == 'autoformer':
     c_out = num_sensors
     out_len = output_len
     model = Autoformer(enc_in, dec_in, c_out, out_len)
+elif which_model == 'fedformer':
+    enc_in = num_sensors
+    dec_in = num_sensors
+    c_out = num_sensors
+    out_len = output_len
+    model = Fedformer(enc_in, dec_in, c_out, input_len, out_len)
 else:
     print('\033[32mno such model\033[0m')
     exit()
