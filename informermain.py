@@ -96,10 +96,13 @@ if __name__ == '__main__':
         dataset = pickle.load(open(os.path.join(data_root, 'wht.pkl'), 'rb'))
     elif dataset_name == 'gweather':
         dataset = pickle.load(open(os.path.join(data_root, 'weather.pkl'), 'rb'))
+    elif dataset_name == 'etth1':
+        dataset = pickle.load(open(os.path.join(data_root, 'ETTh1.pkl'), 'rb'))
     else:
         print('\033[32mno such dataset\033[0m')
         exit()
-
+    if (multiGPU and local_rank == 0) or not multiGPU:
+        print('\033[32m',dataset.shape,'\033[0m')
     data_preprocessor = Datapreprocessor(dataset, input_len, output_len, stride=stride)
     num_sensors = data_preprocessor.num_sensors
 
