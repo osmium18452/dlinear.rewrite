@@ -30,6 +30,7 @@ for dataset in wht gweather etth1 etth2 ettm1 ettm2 exchange ill; do
       elif [ $model = 'crossformer' ]; then
         batch_size=15
       fi
+      echo torchrun --nproc_per_node=6 --nnodes=1 informermain.py -GBDMC 2,3,4,5,6,7 -e $epoch -o $output_len -b $batch_size --fixed_seed 3407 -m $model -d $dataset -S save/23.6.13/$model/$dataset/$output_len
       torchrun --nproc_per_node=6 --nnodes=1 informermain.py -GBDMC 2,3,4,5,6,7 -e $epoch -o $output_len -b $batch_size --fixed_seed 3407 -m $model -d $dataset -S save/23.6.13/$model/$dataset/$output_len
     done
   done
@@ -53,6 +54,7 @@ for dataset in wht gweather etth1 etth2 ettm1 ettm2 exchange ill; do
       elif [ $model = 'crossformer' ]; then
         batch_size=15
       fi
+      echo torchrun --nproc_per_node=6 --nnodes=1 informermain.py -GDMC 2,3,4,5,6,7 -e $epoch -o $output_len -b $batch_size --fixed_seed 3407 -m $model -d $dataset -S save/23.6.13/worst_model/$model/$dataset/$output_len
       torchrun --nproc_per_node=6 --nnodes=1 informermain.py -GDMC 2,3,4,5,6,7 -e $epoch -o $output_len -b $batch_size --fixed_seed 3407 -m $model -d $dataset -S save/23.6.13/worst_model/$model/$dataset/$output_len
     done
   done
