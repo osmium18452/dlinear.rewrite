@@ -14,7 +14,7 @@ import numpy as np
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-b', '--batch_size', type=int, default=256)
+    parser.add_argument('-b', '--batch_size', type=int, default=64)
     parser.add_argument('-B', '--best_model', action='store_true')
     parser.add_argument('-C', '--CUDA_VISIBLE_DEVICES', type=str, default='0,1,2,3,4,5,6,7')
     parser.add_argument('-d', '--dataset', type=str, default='gweather', help='wht, gweather')
@@ -27,7 +27,8 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--input_len', type=int, default=96)
     parser.add_argument('-k', '--kernel_size', type=int, default=25)
     parser.add_argument('-l', '--lr', type=float, default=.001)
-    parser.add_argument('-m', '--model', type=str, default='informer', help='informer, autoformer, fedformer, pyraformer')
+    parser.add_argument('-m', '--model', type=str, default='informer',
+                        help='informer, autoformer, fedformer, pyraformer, transformer, reformer')
     parser.add_argument('-M', '--multi_GPU', action='store_true')
     parser.add_argument('-o', '--output_len', type=int, default=96)
     parser.add_argument('-s', '--stride', type=int, default=1)
@@ -106,17 +107,21 @@ if __name__ == '__main__':
     valid_input, valid_gt, valid_encoding = data_preprocessor.load_validate_samples(encoding=True)
     test_input, test_gt, test_encoding = data_preprocessor.load_test_samples(encoding=True)
     train_set = InformerDataset(train_input, train_gt, train_encoding)
-    train_loader = DataLoader(train_set, sampler=DistributedSampler(train_set) if multiGPU else None, batch_size=batch_size,
+    train_loader = DataLoader(train_set, sampler=DistributedSampler(train_set) if multiGPU else None,
+                              batch_size=batch_size,
                               shuffle=False if multiGPU else True)
     # valid_loader = None
     test_loader = None
-    valid_loader = DataLoader(InformerDataset(valid_input, valid_gt, valid_encoding), batch_size=batch_size, shuffle=False)
+    valid_loader = DataLoader(InformerDataset(valid_input, valid_gt, valid_encoding), batch_size=batch_size,
+                              shuffle=False)
     if (multiGPU and local_rank == 0) or not multiGPU:
-        test_loader = DataLoader(InformerDataset(test_input, test_gt, test_encoding), batch_size=batch_size, shuffle=False)
+        test_loader = DataLoader(InformerDataset(test_input, test_gt, test_encoding), batch_size=batch_size,
+                                 shuffle=False)
 
     model = None
     if which_model == 'informer':
         from Informer import Informer
+
         enc_in = num_sensors
         dec_in = num_sensors
         c_out = num_sensors
@@ -124,6 +129,7 @@ if __name__ == '__main__':
         model = Informer(enc_in, dec_in, c_out, out_len)
     elif which_model == 'autoformer':
         from Autoformer import Autoformer
+
         enc_in = num_sensors
         dec_in = num_sensors
         c_out = num_sensors
@@ -131,6 +137,7 @@ if __name__ == '__main__':
         model = Autoformer(enc_in, dec_in, c_out, out_len)
     elif which_model == 'fedformer':
         from FEDformer import Fedformer
+
         enc_in = num_sensors
         dec_in = num_sensors
         c_out = num_sensors
@@ -138,14 +145,26 @@ if __name__ == '__main__':
         model = Fedformer(enc_in, dec_in, c_out, input_len, out_len)
     elif which_model == 'pyraformer':
         from pyraformer import Pyraformer
+
         enc_in = num_sensors
         out_len = output_len
         input_size = input_len
         model = Pyraformer(enc_in, out_len, input_size, device)
-    elif which_model=='crossformer':
+    elif which_model == 'crossformer':
         from Crossformer import Crossformer
-        data_dim, in_len, out_len= num_sensors, input_len, output_len
+
+        data_dim, in_len, out_len = num_sensors, input_len, output_len
         model = Crossformer(data_dim, in_len, out_len)
+    elif which_model == 'transformer':
+        from Transformer import Transformer
+
+        input_size = num_sensors
+        model = Transformer(input_size)
+    elif which_model == 'reformer':
+        from Refomer import Reformer
+
+        pred_len, enc_in, c_out = output_len, num_sensors, num_sensors
+        model = Reformer(pred_len, enc_in, c_out)
     else:
         print('\033[32mno such model\033[0m')
         exit()
