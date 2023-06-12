@@ -17,7 +17,8 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--batch_size', type=int, default=64)
     parser.add_argument('-B', '--best_model', action='store_true')
     parser.add_argument('-C', '--CUDA_VISIBLE_DEVICES', type=str, default='0,1,2,3,4,5,6,7')
-    parser.add_argument('-d', '--dataset', type=str, default='gweather', help='wht, gweather')
+    parser.add_argument('-d', '--dataset', type=str, default='gweather',
+                        help='wht, gweather, etth1, etth2, ettm1, ettm2, exchange, ill, traffic(too large)')
     parser.add_argument('-D', '--delete_model_dic', action='store_true')
     parser.add_argument('-e', '--total_eopchs', type=int, default=20)
     parser.add_argument('-f', '--fixed_seed', type=int, default=None)
@@ -98,11 +99,23 @@ if __name__ == '__main__':
         dataset = pickle.load(open(os.path.join(data_root, 'weather.pkl'), 'rb'))
     elif dataset_name == 'etth1':
         dataset = pickle.load(open(os.path.join(data_root, 'ETTh1.pkl'), 'rb'))
+    elif dataset_name == 'etth2':
+        dataset = pickle.load(open(os.path.join(data_root, 'ETTh2.pkl'), 'rb'))
+    elif dataset_name == 'ettm1':
+        dataset = pickle.load(open(os.path.join(data_root, 'ETTm1.pkl'), 'rb'))
+    elif dataset_name == 'ettm2':
+        dataset = pickle.load(open(os.path.join(data_root, 'ETTm2.pkl'), 'rb'))
+    elif dataset_name == 'exchange':
+        dataset = pickle.load(open(os.path.join(data_root, 'exchange_rate.pkl'), 'rb'))
+    elif dataset_name == 'ill':
+        dataset = pickle.load(open(os.path.join(data_root, 'national_illness.pkl'), 'rb'))
+    elif dataset_name == 'traffic':
+        dataset = pickle.load(open(os.path.join(data_root, 'traffic.pkl'), 'rb'))
     else:
         print('\033[32mno such dataset\033[0m')
         exit()
     if (multiGPU and local_rank == 0) or not multiGPU:
-        print('\033[32m',dataset.shape,'\033[0m')
+        print('\033[32m', dataset.shape, '\033[0m')
     data_preprocessor = Datapreprocessor(dataset, input_len, output_len, stride=stride)
     num_sensors = data_preprocessor.num_sensors
 
@@ -274,6 +287,7 @@ if __name__ == '__main__':
         result_dict = arg_dict
         result_dict['mse'] = test_loss
         result_dict['mae'] = mae_loss
+        result_dict['save_step'] = last_save_step
         print(json.dumps(result_dict, ensure_ascii=False), file=open(os.path.join(save_dir, 'result.json'), 'w'))
         if delete_model_dic:
             os.remove(os.path.join(save_dir, 'best_model.pth'))

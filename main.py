@@ -16,7 +16,8 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--batch_size', type=int, default=1024)
     parser.add_argument('-B', '--best_model', action='store_true')
     parser.add_argument('-C', '--CUDA_VISIBLE_DEVICES', type=str, default='0,1,2,3,4,5,6,7')
-    parser.add_argument('-d', '--dataset', type=str, default='gweather', help='wht, gweather')
+    parser.add_argument('-d', '--dataset', type=str, default='gweather',
+                        help='wht, gweather, etth1, etth2, ettm1, ettm2, exchange, ill, traffic')
     parser.add_argument('-D', '--delete_model_dic', action='store_true')
     parser.add_argument('-e', '--total_eopchs', type=int, default=100)
     parser.add_argument('-E', '--early_stop', action='store_true')
