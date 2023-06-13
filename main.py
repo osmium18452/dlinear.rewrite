@@ -1,3 +1,4 @@
+import json
 import os
 import pickle
 import argparse
@@ -145,36 +146,37 @@ if __name__ == '__main__':
         pbar_iter.close()
 
         # validate
-        model.eval()
-        output_list = []
-        gt_list = []
-        pbar_iter = tqdm(total=len(valid_loader), ascii=True, dynamic_ncols=True, leave=False)
-        pbar_iter.set_description_str('validating')
-        with torch.no_grad():
-            for i, (input, ground_truth) in enumerate(valid_loader):
-                input = input.to(device)
-                output = model(input)
-                output_list.append(output.cpu())
-                gt_list.append(ground_truth)
-                pbar_iter.update()
-        pbar_iter.close()
-        if torch.__version__ > '1.13.0':
-            output_list = torch.concatenate(output_list, dim=0)
-            gt_list = torch.concatenate(gt_list, dim=0)
-        else:
-            output_list = torch.cat(output_list, dim=0)
-            gt_list = torch.cat(gt_list, dim=0)
-        validate_loss = loss_fn(output_list, gt_list).item()
-        validate_loss_list.append(validate_loss)
-        pbar_epoch.set_postfix_str('validate_loss:{:.4f}'.format(validate_loss))
+        if best_model:
+            model.eval()
+            output_list = []
+            gt_list = []
+            pbar_iter = tqdm(total=len(valid_loader), ascii=True, dynamic_ncols=True, leave=False)
+            pbar_iter.set_description_str('validating')
+            with torch.no_grad():
+                for i, (input, ground_truth) in enumerate(valid_loader):
+                    input = input.to(device)
+                    output = model(input)
+                    output_list.append(output.cpu())
+                    gt_list.append(ground_truth)
+                    pbar_iter.update()
+            pbar_iter.close()
+            if torch.__version__ > '1.13.0':
+                output_list = torch.concatenate(output_list, dim=0)
+                gt_list = torch.concatenate(gt_list, dim=0)
+            else:
+                output_list = torch.cat(output_list, dim=0)
+                gt_list = torch.cat(gt_list, dim=0)
+            validate_loss = loss_fn(output_list, gt_list).item()
+            validate_loss_list.append(validate_loss)
+            pbar_epoch.set_postfix_str('validate_loss:{:.4f}'.format(validate_loss))
+            if validate_loss < minium_loss:
+                last_save_step = epoch
+                minium_loss = validate_loss
+                torch.save(model.state_dict(), os.path.join(save_dir, 'best_model.pth'))
+                pbar_epoch.set_description_str('saved at epoch %d %.4f' % (epoch + 1, minium_loss))
+            if early_stop and epoch - last_save_step > 10:
+                break
         pbar_epoch.update(1)
-        if validate_loss < minium_loss:
-            last_save_step = epoch
-            minium_loss = validate_loss
-            torch.save(model.state_dict(), os.path.join(save_dir, 'best_model.pth'))
-            pbar_epoch.set_description_str('saved at epoch %d %.4f' % (epoch + 1, minium_loss))
-        if early_stop and epoch - last_save_step > 10:
-            break
     pbar_epoch.close()
 
     # test
@@ -200,8 +202,13 @@ if __name__ == '__main__':
         output_list = torch.cat(output_list, dim=0)
         gt_list = torch.cat(gt_list, dim=0)
     test_loss = loss_fn(output_list, gt_list).item()
-    mae_loss = torch.mean(torch.abs(output_list - gt_list))
+    mae_loss = torch.mean(torch.abs(output_list - gt_list)).item()
     print('\033[32mmse loss:{:.4f} mae loss:{:.4f}\033[0m'.format(test_loss, mae_loss))
+    result_dict = vars(args)
+    result_dict['mse'] = test_loss
+    result_dict['mae'] = mae_loss
+    result_dict['save_step'] = last_save_step
+    print(json.dumps(result_dict, ensure_ascii=False), file=open(os.path.join(save_dir, 'result.json'), 'w'))
     if delete_model_dic:
         os.remove(os.path.join(save_dir, 'best_model.pth'))
         print('\033[33mdeleted model.pth\033[0m')
