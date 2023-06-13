@@ -12,6 +12,8 @@ from Datapreprocessor import Datapreprocessor, InformerDataset
 from tqdm import tqdm
 import numpy as np
 
+# torchrun --nproc_per_node=2 --nnodes=1 --master-port 2333 informermain.py -GDMC 0,1 -e 3 -o 24 -b 90 --fixed_seed 3407 -m fedformer -d ettm1 -s 10
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--batch_size', type=int, default=64)
@@ -57,7 +59,7 @@ if __name__ == '__main__':
     fixed_seed = args.fixed_seed
     best_model = args.best_model
     kernel_size = args.kernel_size
-    delete_model_dic = args.delete_model_dic
+    delete_model_dic = args.delete_model_dic and args.best_model
     multiGPU = args.multi_GPU
 
     local_rank = int(os.environ['LOCAL_RANK']) if 'LOCAL_RANK' in os.environ else 0
