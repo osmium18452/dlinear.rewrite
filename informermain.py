@@ -12,7 +12,26 @@ from Datapreprocessor import Datapreprocessor, InformerDataset
 from tqdm import tqdm
 import numpy as np
 
+
 # torchrun --nproc_per_node=2 --nnodes=1 --master-port 2333 informermain.py -GDMC 0,1 -e 3 -o 24 -b 90 --fixed_seed 3407 -m fedformer -d ettm1 -s 10
+
+def check_mem(cuda_device):
+    devices_info = os.popen(
+        '"/usr/bin/nvidia-smi" --query-gpu=memory.total,memory.used --format=csv,nounits,noheader').read().strip().split(
+        "\n")
+    total, used = devices_info[int(cuda_device)].split(',')
+    return total, used
+
+
+def occumpy_mem(cuda_device):
+    total, used = check_mem(cuda_device)
+    total = int(total)
+    used = int(used)
+    max_mem = int(total * 0.9)
+    block_mem = max_mem - used
+    x = torch.FloatTensor(256, 1024, block_mem).to(cuda_device)
+    del x
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -34,6 +53,7 @@ if __name__ == '__main__':
                         help='informer, autoformer, fedformer, pyraformer, transformer, reformer')
     parser.add_argument('-M', '--multi_GPU', action='store_true')
     parser.add_argument('-o', '--output_len', type=int, default=96)
+    parser.add_argument('-O', '--occupy_mem', action='store_true')
     parser.add_argument('-s', '--stride', type=int, default=1)
     parser.add_argument('-S', '--save_dir', type=str, default='save')
     parser.add_argument('-t', '--train_ratio', type=float, default=.6)
@@ -61,6 +81,7 @@ if __name__ == '__main__':
     kernel_size = args.kernel_size
     delete_model_dic = args.delete_model_dic and args.best_model
     multiGPU = args.multi_GPU
+    occupy_mem=args.occupy_mem
 
     local_rank = int(os.environ['LOCAL_RANK']) if 'LOCAL_RANK' in os.environ else 0
     os.environ['CUDA_VISIBLE_DEVICES'] = args.CUDA_VISIBLE_DEVICES
@@ -68,6 +89,8 @@ if __name__ == '__main__':
         device = torch.device('cuda', local_rank)
     else:
         device = torch.device('cuda:0' if gpu else 'cpu')
+    if occupy_mem:
+        occumpy_mem(local_rank)
 
     if (multiGPU and local_rank == 0) or not multiGPU:
         if not os.path.exists(save_dir):
