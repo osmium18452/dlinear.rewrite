@@ -52,8 +52,8 @@ if __name__ == '__main__':
     fixed_seed = args.fixed_seed
     best_model = args.best_model
     kernel_size = args.kernel_size
-    delete_model_dic = args.delete_model_dic
-    early_stop = args.early_stop
+    delete_model_dic = args.delete_model_dic and args.best_model
+    early_stop = args.early_stop and args.best_model
 
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -81,6 +81,20 @@ if __name__ == '__main__':
         dataset = pickle.load(open(os.path.join(data_root, 'wht.pkl'), 'rb'))
     elif dataset_name == 'gweather':
         dataset = pickle.load(open(os.path.join(data_root, 'weather.pkl'), 'rb'))
+    elif dataset_name == 'etth1':
+        dataset = pickle.load(open(os.path.join(data_root, 'ETTh1.pkl'), 'rb'))
+    elif dataset_name == 'etth2':
+        dataset = pickle.load(open(os.path.join(data_root, 'ETTh2.pkl'), 'rb'))
+    elif dataset_name == 'ettm1':
+        dataset = pickle.load(open(os.path.join(data_root, 'ETTm1.pkl'), 'rb'))
+    elif dataset_name == 'ettm2':
+        dataset = pickle.load(open(os.path.join(data_root, 'ETTm2.pkl'), 'rb'))
+    elif dataset_name == 'exchange':
+        dataset = pickle.load(open(os.path.join(data_root, 'exchange_rate.pkl'), 'rb'))
+    elif dataset_name == 'ill':
+        dataset = pickle.load(open(os.path.join(data_root, 'national_illness.pkl'), 'rb'))
+    elif dataset_name == 'traffic':
+        dataset = pickle.load(open(os.path.join(data_root, 'traffic.pkl'), 'rb'))
     else:
         print('\033[32mno such dataset\033[0m')
         exit()
@@ -144,8 +158,12 @@ if __name__ == '__main__':
                 gt_list.append(ground_truth)
                 pbar_iter.update()
         pbar_iter.close()
-        output_list = torch.concatenate(output_list, dim=0)
-        gt_list = torch.concatenate(gt_list, dim=0)
+        if torch.__version__ > '1.13.0':
+            output_list = torch.concatenate(output_list, dim=0)
+            gt_list = torch.concatenate(gt_list, dim=0)
+        else:
+            output_list = torch.cat(output_list, dim=0)
+            gt_list = torch.cat(gt_list, dim=0)
         validate_loss = loss_fn(output_list, gt_list).item()
         validate_loss_list.append(validate_loss)
         pbar_epoch.set_postfix_str('validate_loss:{:.4f}'.format(validate_loss))
@@ -175,8 +193,12 @@ if __name__ == '__main__':
             gt_list.append(ground_truth)
             pbar_iter.update(1)
     pbar_iter.close()
-    output_list = torch.concatenate(output_list, dim=0)
-    gt_list = torch.concatenate(gt_list, dim=0)
+    if torch.__version__ > '1.13.0':
+        output_list = torch.concatenate(output_list, dim=0)
+        gt_list = torch.concatenate(gt_list, dim=0)
+    else:
+        output_list = torch.cat(output_list, dim=0)
+        gt_list = torch.cat(gt_list, dim=0)
     test_loss = loss_fn(output_list, gt_list).item()
     mae_loss = torch.mean(torch.abs(output_list - gt_list))
     print('\033[32mmse loss:{:.4f} mae loss:{:.4f}\033[0m'.format(test_loss, mae_loss))

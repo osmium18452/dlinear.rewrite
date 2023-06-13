@@ -105,7 +105,7 @@ class LTSFDLinear(nn.Module):
             self.linear_seasonal = nn.ModuleList()
             self.linear_trend = nn.ModuleList()
 
-            for i in range(self.channels):
+            for i in range(self.sensors):
                 self.linear_seasonal.append(nn.Linear(self.input_size, self.output_size))
                 self.linear_trend.append(nn.Linear(self.input_size, self.output_size))
         else:
@@ -119,7 +119,7 @@ class LTSFDLinear(nn.Module):
         if self.individual:
             seasonal_output = torch.zeros([seasonal_init.size(0), seasonal_init.size(1), self.output_size], dtype=seasonal_init.dtype).to(seasonal_init.device)
             trend_output = torch.zeros([trend_init.size(0), trend_init.size(1), self.output_size], dtype=trend_init.dtype).to(trend_init.device)
-            for i in range(self.channels):
+            for i in range(self.sensors):
                 seasonal_output[:,i,:] = self.linear_seasonal[i](seasonal_init[:, i, :])
                 trend_output[:,i,:] = self.linear_trend[i](trend_init[:, i, :])
         else:

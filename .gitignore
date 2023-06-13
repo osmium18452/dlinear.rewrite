@@ -1,4 +1,3 @@
 *.sh
-!shdir/baseline.sh
-!shdir/titan.sh
+!shdir/*
 save
