@@ -16,7 +16,7 @@ mem_scalar=1
 cuda_device=2,3,4,5,6,7
 dev_num=6
 
-for model in informer autoformer fedformer pyraformer transformer reformer; do
+for model in crossformer informer autoformer fedformer pyraformer transformer reformer; do
   for dataset in gweather etth1 etth2 ettm1 ettm2 exchange ill; do
     for output_len in 24 48 96 192 360 720; do
       if [ $model = "reformer" ]; then
@@ -40,7 +40,7 @@ for model in informer autoformer fedformer pyraformer transformer reformer; do
   done
 done
 
-#for model in informer autoformer fedformer pyraformer transformer reformer; do
+#for model in crossformer informer autoformer fedformer pyraformer transformer reformer; do
 #  for dataset in wht gweather etth1 etth2 ettm1 ettm2 exchange ill; do
 #    for output_len in 24 48 96 192 360 720; do
 #      if [ $model = "reformer" ]; then
