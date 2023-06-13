@@ -14,8 +14,8 @@
 # illness dataset: 24 36 48 60
 epoch=20
 mem_scalar=2
-cuda_device=1,2,4,5,6,7
-dev_num=6
+cuda_device=1,2,4,5
+dev_num=4
 
 out_list="24 48 96 192 360 720"
 exec_date=23.6.13.1.worst.model
