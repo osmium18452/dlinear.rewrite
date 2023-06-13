@@ -37,6 +37,7 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--train_ratio', type=float, default=.6)
     parser.add_argument('-v', '--valid_ratio', type=float, default=.2)
     parser.add_argument('--fudan', action='store_true')
+    parser.add_argument('--titan', action='store_true')
     args = parser.parse_args()
     arg_dict = vars(args)
 
@@ -88,6 +89,8 @@ if __name__ == '__main__':
     else:
         if args.fudan:
             data_root = '/remote-home/liuwenbo/pycproj/dataset'
+        elif args.titan:
+            data_root = '/data/user19302427/pycharmdir/forecast.dataset/pkl'
         else:
             data_root = '/home/icpc/pycharmproj/forecast.dataset/pkl/'
 
@@ -218,7 +221,7 @@ if __name__ == '__main__':
             pbar_iter.close()
 
         # validate
-        if (multiGPU and local_rank == 0) or not multiGPU:
+        if best_model and ((multiGPU and local_rank == 0) or not multiGPU):
             model.eval()
             output_list = []
             gt_list = []
@@ -243,13 +246,14 @@ if __name__ == '__main__':
                 gt_list = torch.cat(gt_list, dim=0)
             validate_loss = loss_fn(output_list, gt_list).item()
             validate_loss_list.append(validate_loss)
-            pbar_epoch.set_postfix_str('validate_loss:{:.4f}'.format(validate_loss))
-            pbar_epoch.update(1)
+            pbar_epoch.set_postfix_str('eval loss:{:.4f}'.format(validate_loss))
             if validate_loss < minium_loss:
                 last_save_step = epoch
                 minium_loss = validate_loss
                 torch.save(model.state_dict(), os.path.join(save_dir, 'best_model.pth'))
                 pbar_epoch.set_description_str('saved at epoch %d %.4f' % (epoch + 1, minium_loss))
+        if (multiGPU and local_rank == 0) or not multiGPU:
+            pbar_epoch.update(1)
         if multiGPU:
             dist.barrier()
     if (multiGPU and local_rank == 0) or not multiGPU:
