@@ -19,9 +19,9 @@ def check_mem(cuda_device):
     devices_info = os.popen(
         '"/usr/bin/nvidia-smi" --query-gpu=memory.total,memory.used --format=csv,nounits,noheader').read().strip().split(
         "\n")
+    # print(devices_info)
     total, used = devices_info[int(cuda_device)].split(',')
     return total, used
-
 
 def occumpy_mem(cuda_device):
     total, used = check_mem(cuda_device)
@@ -89,6 +89,7 @@ if __name__ == '__main__':
         device = torch.device('cuda', local_rank)
     else:
         device = torch.device('cuda:0' if gpu else 'cpu')
+
     if occupy_mem:
         occumpy_mem(local_rank)
 
@@ -106,7 +107,6 @@ if __name__ == '__main__':
 
     if multiGPU:
         import torch.distributed as dist
-
         dist.init_process_group(backend="nccl")
 
     if platform.system() == 'Windows':
