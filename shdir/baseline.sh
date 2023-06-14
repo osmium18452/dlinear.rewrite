@@ -38,7 +38,7 @@ for model in crossformer informer autoformer fedformer pyraformer transformer re
         elif [ $model = 'transformer' ]; then
             batch_size=$(expr 10 \* $mem_scalar)
         elif [ $model = 'crossformer' ]; then
-            batch_size=$(expr 15 \* $mem_scalar)
+            batch_size=$(expr 10 \* $mem_scalar)
         fi
         exec="torchrun --nproc_per_node=$dev_num --nnodes=1 informermain.py -GDMC $cuda_device -e $epoch -o $output_len -b $batch_size --fixed_seed 3407 -m $model -d $dataset -S save/$exec_date/$model/$dataset/$output_len"
         echo "$exec"
@@ -64,7 +64,7 @@ for model in crossformer informer autoformer fedformer pyraformer transformer re
         elif [ $model = 'transformer' ]; then
             batch_size=$(expr 10 \* $mem_scalar)
         elif [ $model = 'crossformer' ]; then
-            batch_size=$(expr 15 \* $mem_scalar)
+            batch_size=$(expr 10 \* $mem_scalar)
         fi
         exec="torchrun --nproc_per_node=$dev_num --nnodes=1 informermain.py -GBDMC $cuda_device -e $epoch -o $output_len -b $batch_size --fixed_seed 3407 -m $model -d $dataset -S save/$exec_date/$model/$dataset/$output_len"
         echo "$exec"
@@ -93,7 +93,7 @@ for model in crossformer informer autoformer fedformer pyraformer transformer re
             elif [ $model = 'transformer' ]; then
                 batch_size=$(expr 10 \* $mem_scalar)
             elif [ $model = 'crossformer' ]; then
-                batch_size=$(expr 15 \* $mem_scalar)
+                batch_size=$(expr 10 \* $mem_scalar)
             fi
             exec="torchrun --nproc_per_node=$dev_num --nnodes=1 informermain.py -GDMC $cuda_device -e $epoch -o $output_len -b $batch_size --fixed_seed 3407 -m $model -d $dataset -S save/$exec_date/$model/$dataset/$output_len"
             echo "$exec"
@@ -120,7 +120,7 @@ for model in crossformer informer autoformer fedformer pyraformer transformer re
             elif [ $model = 'transformer' ]; then
                 batch_size=$(expr 10 \* $mem_scalar)
             elif [ $model = 'crossformer' ]; then
-                batch_size=$(expr 15 \* $mem_scalar)
+                batch_size=$(expr 10 \* $mem_scalar)
             fi
             exec="torchrun --nproc_per_node=$dev_num --nnodes=1 informermain.py -GBDMC $cuda_device -e $epoch -o $output_len -b $batch_size --fixed_seed 3407 -m $model -d $dataset -S save/$exec_date/$model/$dataset/$output_len"
             echo "$exec"
