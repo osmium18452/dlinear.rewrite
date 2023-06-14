@@ -13,14 +13,15 @@
 # seven transformer-like models, seven datasets and six output lengths.
 # illness dataset: 24 36 48 60
 epoch=20
-mem_scalar=2
-cuda_device=2,3,4,5,6,7
-dev_num=6
+mem_scalar=1
+cuda_device=0,1,2,3,4,5,6,7
+dev_num=8
 
 out_list="20 40 80 160 320 480"
 exec_date=23.6.14.worst.model
+model_list="reformer transformer pyraformer fedformer autoformer informer crossformer"
 
-for model in crossformer informer autoformer fedformer pyraformer transformer reformer; do
+for model in $model_list; do
     for dataset in gweather etth1 etth2 ettm1 ettm2 exchange wht; do
         for output_len in $out_list; do
             if [ $model = "reformer" ]; then
@@ -38,7 +39,7 @@ for model in crossformer informer autoformer fedformer pyraformer transformer re
             elif [ $model = 'crossformer' ]; then
                 batch_size=$(expr 10 \* $mem_scalar)
             fi
-            exec="torchrun --nproc_per_node=$dev_num --nnodes=1 informermain.py --fudan -GDOMC $cuda_device -e $epoch -o $output_len -b $batch_size --fixed_seed 3407 -m $model -d $dataset -S save/$exec_date/$model/$dataset/$output_len"
+            exec="torchrun --nproc_per_node=$dev_num --nnodes=1 informermain.py -GDMC $cuda_device -e $epoch -o $output_len -b $batch_size --fixed_seed 3407 -m $model -d $dataset -S save/$exec_date/$model/$dataset/$output_len"
             echo "$exec"
             if [ ! -e save/$exec_date/$model/$dataset/$output_len/result.json ]; then
                 $exec

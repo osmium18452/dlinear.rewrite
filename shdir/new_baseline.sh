@@ -9,7 +9,7 @@
 # S: save path
 # s: stride
 # o: output length 24 48 96 192 360 720
-#    or 20 40 80 160 320
+#    or 20 40 80 160 320 480
 # seven transformer-like models, seven datasets and six output lengths.
 # illness dataset: 24 36 48 60
 epoch=20
