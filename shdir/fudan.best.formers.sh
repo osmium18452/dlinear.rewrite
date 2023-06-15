@@ -15,8 +15,8 @@
 # run all best models
 epoch=20
 mem_scalar=2
-cuda_device=0,1,2,3,4,5,6,7
-dev_num=8
+cuda_device=2,3,4,5,6,7
+dev_num=6
 
 out_list="24 48 96 192 360 720 20 40 80 160 320"
 exec_date=23.6.13.1
