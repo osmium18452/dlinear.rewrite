@@ -5,6 +5,7 @@ cuda_device=0,1,2,3,4,5,6,7
 dev_num=8
 # all worst model. length 1. all datasets.
 
+
 model_list="crossformer informer autoformer fedformer pyraformer transformer reformer"
 dataset_list="gweather etth1 etth2 ettm1 ettm2 exchange wht"
 out_list="24 48 96 192 360 720"

@@ -28,14 +28,19 @@ class LSTMEmbedding(nn.Module):
 
 
 class Model(nn.Module):
-    def __init__(self, input_len, output_len, sensors, sensor_dim, individual=False):
+    def __init__(self, input_len, output_len, sensors, sensor_dim=1,d_model=32, individual=False):
         super(Model, self).__init__()
+        self.embedding=LSTMEmbedding(d_model,sensors=sensors,individual=individual)
 
-    def forward(self, x):
-        pass
+    def forward(self, x, graph):
+        return self.embedding(x)
 
 
 if __name__ == '__main__':
-    a = torch.zeros([10, 100, 5])
-    embedding = LSTMEmbedding(32, 5, 1, True)
-    print(embedding(a).shape)
+    batch_size=10
+    input_len=100
+    output_len=50
+    sensors=5
+    a = torch.zeros([batch_size, input_len, sensors])
+    output=Model(input_len,output_len,sensors,individual=False)(a,None)
+    print(output.shape)

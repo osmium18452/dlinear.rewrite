@@ -15,12 +15,12 @@
 # run all best models
 epoch=20
 mem_scalar=2
-cuda_device=2,3,4,5,6,7
-dev_num=6
+cuda_device=0,1,2,3,4,5,6,7
+dev_num=8
 
 out_list="24 48 96 192 360 720 20 40 80 160 320"
 exec_date=23.6.13.1
-for model in reformer transformer pyraformer fedformer autoformer informer crossformer; do
+for model in autoformer transformer; do
     for dataset in wht gweather etth1 etth2 ettm1 ettm2 exchange; do
         for output_len in $out_list; do
             if [ $model = "reformer" ]; then

@@ -1,10 +1,10 @@
 import os
 import json
 
-root_dir = 'save/formers/23.6.13.1.worst.model'
+root_dir = 'results/formers.result.2'
 count = 0
 result_list = []
-with open('results/fromers.worst.csv', 'w') as f:
+with open('results/fromers.best.csv', 'w') as f:
     for root, dir_list, file_list in os.walk(root_dir):
         for file in file_list:
             result = json.loads(open(os.path.join(root, file)).read())
