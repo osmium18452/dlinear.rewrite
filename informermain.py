@@ -23,6 +23,7 @@ def check_mem(cuda_device):
     total, used = devices_info[int(cuda_device)].split(',')
     return total, used
 
+
 def occumpy_mem(cuda_device):
     total, used = check_mem(cuda_device)
     total = int(total)
@@ -39,7 +40,7 @@ if __name__ == '__main__':
     parser.add_argument('-B', '--best_model', action='store_true')
     parser.add_argument('-C', '--CUDA_VISIBLE_DEVICES', type=str, default='0,1,2,3,4,5,6,7')
     parser.add_argument('-d', '--dataset', type=str, default='gweather',
-                        help='wht, gweather, etth1, etth2, ettm1, ettm2, exchange, ill, traffic(too large)')
+                        help='wht, gweather, etth1, etth2, ettm1, ettm2, exchange, ill, traffic(too large), finance')
     parser.add_argument('-D', '--delete_model_dic', action='store_true')
     parser.add_argument('-e', '--total_eopchs', type=int, default=20)
     parser.add_argument('-f', '--fixed_seed', type=int, default=None)
@@ -81,7 +82,7 @@ if __name__ == '__main__':
     kernel_size = args.kernel_size
     delete_model_dic = args.delete_model_dic and args.best_model
     multiGPU = args.multi_GPU
-    occupy_mem=args.occupy_mem
+    occupy_mem = args.occupy_mem
 
     local_rank = int(os.environ['LOCAL_RANK']) if 'LOCAL_RANK' in os.environ else 0
     os.environ['CUDA_VISIBLE_DEVICES'] = args.CUDA_VISIBLE_DEVICES
@@ -107,6 +108,7 @@ if __name__ == '__main__':
 
     if multiGPU:
         import torch.distributed as dist
+
         dist.init_process_group(backend="nccl")
 
     if platform.system() == 'Windows':
@@ -139,6 +141,8 @@ if __name__ == '__main__':
         dataset = pickle.load(open(os.path.join(data_root, 'national_illness.pkl'), 'rb'))
     elif dataset_name == 'traffic':
         dataset = pickle.load(open(os.path.join(data_root, 'traffic.pkl'), 'rb'))
+    elif dataset_name == 'finance':
+        dataset = pickle.load(open(os.path.join(data_root, 'finance.pkl'), 'rb'))
     else:
         print('\033[32mno such dataset\033[0m')
         exit()
