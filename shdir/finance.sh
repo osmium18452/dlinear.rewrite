@@ -17,9 +17,9 @@ mem_scalar=1
 cuda_device=3
 
 model_list="crossformer informer autoformer fedformer pyraformer transformer reformer"
-out_list="20 40 80 160 320 480 24 48 96 192 360 720"
-exec_date=23.7.10
-prefix=worst.model
+out_list="24 36 48 60"
+exec_date=23.8.9
+prefix=finance.sup
 flags="-GD"
 
 for model in $model_list; do
