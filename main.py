@@ -96,6 +96,8 @@ if __name__ == '__main__':
         dataset = pickle.load(open(os.path.join(data_root, 'national_illness.pkl'), 'rb'))
     elif dataset_name == 'traffic':
         dataset = pickle.load(open(os.path.join(data_root, 'traffic.pkl'), 'rb'))
+    elif dataset_name == 'finance':
+        dataset = pickle.load(open(os.path.join(data_root, 'finance.pkl'), 'rb'))
     else:
         print('\033[32mno such dataset\033[0m')
         exit()
