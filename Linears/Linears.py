@@ -2,6 +2,23 @@ import torch
 from torch import nn
 
 
+class FourierLinear(nn.Module):
+    def __init__(self, input_size, output_size, sensors=0, individual=False):
+        super(FourierLinear, self).__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+        self.sensors = sensors
+        self.individual = individual
+        self.linear = nn.Linear((self.input_size + 2) // 2, (self.output_size + 2) // 2, dtype=torch.cfloat)
+
+    def forward(self, x):
+        x=x.permute(0,2,1)
+        x = torch.fft.rfft(x, dim=-1)
+        x = self.linear(x)
+        x = torch.fft.irfft(x, n=self.output_size, dim=-1)
+        return x.permute(0,2,1)
+
+
 class LTSFLinear(nn.Module):
     def __init__(self, input_size, output_size, sensors=0, individual=False):
         super(LTSFLinear, self).__init__()
@@ -56,10 +73,12 @@ class LTSFNLinear(nn.Module):
         x = x + seq_last
         return x  # [Batch, Output length, Channel]
 
+
 class MovingAvg(nn.Module):
     """
     Moving average block to highlight the trend of time series
     """
+
     def __init__(self, kernel_size, stride):
         super(MovingAvg, self).__init__()
         self.kernel_size = kernel_size
@@ -79,6 +98,7 @@ class SeriesDecomp(nn.Module):
     """
     Series decomposition block
     """
+
     def __init__(self, kernel_size):
         super(SeriesDecomp, self).__init__()
         self.moving_avg = MovingAvg(kernel_size, stride=1)
@@ -88,11 +108,13 @@ class SeriesDecomp(nn.Module):
         res = x - moving_mean
         return res, moving_mean
 
+
 class LTSFDLinear(nn.Module):
     """
     Decomposition-Linear
     """
-    def __init__(self, input_size,output_size,sensors=0,individual=False,kernel_size=25):
+
+    def __init__(self, input_size, output_size, sensors=0, individual=False, kernel_size=25):
         super(LTSFDLinear, self).__init__()
         self.input_size = input_size
         self.output_size = output_size
@@ -115,16 +137,25 @@ class LTSFDLinear(nn.Module):
     def forward(self, x):
         # x: [Batch, Input length, Channel]
         seasonal_init, trend_init = self.decompsition(x)
-        seasonal_init, trend_init = seasonal_init.permute(0,2,1), trend_init.permute(0,2,1)
+        seasonal_init, trend_init = seasonal_init.permute(0, 2, 1), trend_init.permute(0, 2, 1)
         if self.individual:
-            seasonal_output = torch.zeros([seasonal_init.size(0), seasonal_init.size(1), self.output_size], dtype=seasonal_init.dtype).to(seasonal_init.device)
-            trend_output = torch.zeros([trend_init.size(0), trend_init.size(1), self.output_size], dtype=trend_init.dtype).to(trend_init.device)
+            seasonal_output = torch.zeros([seasonal_init.size(0), seasonal_init.size(1), self.output_size],
+                                          dtype=seasonal_init.dtype).to(seasonal_init.device)
+            trend_output = torch.zeros([trend_init.size(0), trend_init.size(1), self.output_size],
+                                       dtype=trend_init.dtype).to(trend_init.device)
             for i in range(self.sensors):
-                seasonal_output[:,i,:] = self.linear_seasonal[i](seasonal_init[:, i, :])
-                trend_output[:,i,:] = self.linear_trend[i](trend_init[:, i, :])
+                seasonal_output[:, i, :] = self.linear_seasonal[i](seasonal_init[:, i, :])
+                trend_output[:, i, :] = self.linear_trend[i](trend_init[:, i, :])
         else:
             seasonal_output = self.linear_seasonal(seasonal_init)
             trend_output = self.linear_trend(trend_init)
 
         x = seasonal_output + trend_output
-        return x.permute(0,2,1) # to [Batch, Output length, Channel]
+        return x.permute(0, 2, 1)  # to [Batch, Output length, Channel]
+
+
+if __name__ == '__main__':
+    input = torch.tensor([[[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]]])
+    linear = FourierLinear(5, 9)
+    output = linear(input)
+    print(output)

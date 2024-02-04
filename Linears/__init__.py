@@ -1,1 +1,1 @@
-from .Linears import LTSFLinear, LTSFNLinear, LTSFDLinear
+from .Linears import LTSFLinear, LTSFNLinear, LTSFDLinear, FourierLinear

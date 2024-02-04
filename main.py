@@ -8,7 +8,7 @@ import random
 import torch
 from torch.utils.data import DataLoader
 from Datapreprocessor import Datapreprocessor, LinearsDataset, InformerDataset
-from Linears import LTSFLinear, LTSFNLinear, LTSFDLinear
+from Linears import LTSFLinear, LTSFNLinear, LTSFDLinear, FourierLinear
 from tqdm import tqdm
 import numpy as np
 
@@ -117,6 +117,8 @@ if __name__ == '__main__':
     elif which_model == 'dlinear':
         model = LTSFDLinear(input_size=input_len, output_size=output_len, sensors=num_sensors, individual=individual,
                             kernel_size=kernel_size)
+    elif which_model == 'flinear':
+        model = FourierLinear(input_size=input_len, output_size=output_len, sensors=num_sensors, individual=individual)
     else:
         print('\033[32mno such model\033[0m')
         exit()
