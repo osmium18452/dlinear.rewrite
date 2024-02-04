@@ -25,7 +25,7 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--fixed_seed', type=int, default=None)
     parser.add_argument('-G', '--gpu', action='store_true')
     parser.add_argument('-I', '--individual', action='store_true')
-    parser.add_argument('-i', '--input_len', type=int, default=336)
+    parser.add_argument('-i', '--input_len', type=int, default=96)
     parser.add_argument('-k', '--kernel_size', type=int, default=25)
     parser.add_argument('-l', '--lr', type=float, default=.001)
     parser.add_argument('-m', '--model', type=str, default='linear', help='linear, dlinear, nlinear')
@@ -69,7 +69,8 @@ if __name__ == '__main__':
         np.random.seed(fixed_seed)
 
     if platform.system() == 'Windows':
-        data_root = 'E:\\forecastdataset\\pkl'
+        data_root = 'C:\\Users\\17110\\Desktop\\ts forecasting\\compare algorithms\\dataset\\datasets\\pkl'
+        # data_root = 'E:\\forecastdataset\\pkl'
     else:
         if args.fudan:
             data_root = '/remote-home/liuwenbo/pycproj/dataset'
