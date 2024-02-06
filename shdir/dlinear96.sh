@@ -1,12 +1,12 @@
 epoch=100
 cuda_device=1
-exec_date=24.2.5
+exec_date=24.2.6
 
 # 20 40 80 160 320 480
 # 24 48 96 192 360 720
 
 len_list="24 48 96 192 360 720"
-model='flinear'
+model='dlinear'
 
 for dataset in gweather wht etth1 etth2 ettm1 ettm2 exchange; do
     for output_len in $len_list; do
